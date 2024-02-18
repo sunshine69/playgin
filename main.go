@@ -80,7 +80,7 @@ func doGet(c *gin.Context) {
 
 // List directory content or files
 func doList(c *gin.Context) {
-	s := smbVFS.SmbVFS_Connect("note-local.kaykraft.org", "stevek", smbPassword, "doc", "")
+	s := smbVFS.SmbVFS_Connect(smbServer, smbUser, smbPassword, smbShare, "")
 	defer s.Close()
 	fullPath := c.Param("path")
 
