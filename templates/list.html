@@ -1,0 +1,29 @@
+<html>
+<title>{{ .title }}</title>
+
+<body>
+    <h1>
+        {{ .myheader }}
+    </h1>
+    <ul>
+        <a href="/">Home</a>
+        <hr />
+        <a href="/smb/ls/{{ .updir }}">Up</a>
+        {{ range $idx, $fi := .finfo }}
+        {{ if $fi.IsDir }}
+        <li>Directory <a href="/smb/ls/{{ $.rootPath }}/{{ $fi.Name }}/">{{ $fi.Name }}</a></li>
+        {{ end }}
+        {{ end }}
+        {{ range $idx, $fi := .finfo }}
+        {{ if not $fi.IsDir }}
+        <li>File <a href="/smb/get/{{ $.rootPath }}/{{ $fi.Name }}">{{ $fi.Name }} | {{ $fi.Size }} bytes | </a>&nbsp <a
+                href="/smb/get/{{ $.rootPath }}/{{ $fi.Name }}?action=view">view</a></li>
+        {{ end }}
+        {{ end }}
+        <hr />
+        <a href="/">Home</a></p>
+    </ul>
+
+</body>
+
+</html>
