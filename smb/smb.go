@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/fs"
 	"net"
-	"net/http"
 
 	"github.com/hirochachacha/go-smb2"
 )
@@ -12,6 +11,7 @@ import (
 type SmbVFS struct {
 	Server     string
 	Port       string
+	Domain     string
 	Username   string
 	Password   string
 	Sharename  string
@@ -19,15 +19,6 @@ type SmbVFS struct {
 	smbSession *smb2.Session
 	FS         *smb2.Share
 }
-
-type SmbHttpFileSystem struct {
-	fs  http.FileSystem
-	smb SmbVFS
-}
-
-// func (nfs SmbHttpFileSystem) Open(path string) (http.File, error) {
-
-// }
 
 // List content of a path
 func (smbVFS *SmbVFS) Ls(path string) []fs.FileInfo {
@@ -49,9 +40,12 @@ func (smbVFS *SmbVFS) Getfile(path string) {
 
 }
 
-func SmbVFS_Connect(server, username, password, sharename, port string) *SmbVFS {
+func SmbVFS_Connect(server, username, password, sharename, domain, port string) *SmbVFS {
 	if port == "" {
 		port = "445"
+	}
+	if domain == "" {
+		domain = server
 	}
 	this := SmbVFS{
 		Server:    server,
@@ -59,6 +53,7 @@ func SmbVFS_Connect(server, username, password, sharename, port string) *SmbVFS 
 		Username:  username,
 		Password:  password,
 		Sharename: sharename,
+		Domain:    domain,
 	}
 	var err error
 	this.conn, err = net.Dial("tcp", fmt.Sprintf("%s:%s", this.Server, this.Port))
@@ -70,6 +65,7 @@ func SmbVFS_Connect(server, username, password, sharename, port string) *SmbVFS 
 		Initiator: &smb2.NTLMInitiator{
 			User:     this.Username,
 			Password: this.Password,
+			Domain:   this.Domain,
 		},
 	}
 

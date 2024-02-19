@@ -6,9 +6,9 @@
         {{ .myheader }}
     </h1>
     <ul>
-        <a href="/">Home</a>
+        <a href="/">Home</a> | <form method="post" action="/smb/search"><input type="text" name="keyword" size="15"/><input type="submit" name="submit" value="Search file"/></form>
         <hr />
-        <a href="/smb/ls/{{ .updir }}">Up</a>
+        <a href="/smb/ls/{{ .updir }}">Up</a><br/><br/>
         {{ range $idx, $fi := .finfo }}
         {{ if $fi.IsDir }}
         <li>Directory <a href="/smb/ls/{{ $.rootPath }}/{{ $fi.Name }}/">{{ $fi.Name }}</a></li>
@@ -20,6 +20,7 @@
                 href="/smb/get/{{ $.rootPath }}/{{ $fi.Name }}?action=view">view</a></li>
         {{ end }}
         {{ end }}
+        <br/><br/>
         <hr />
         <a href="/">Home</a></p>
     </ul>
