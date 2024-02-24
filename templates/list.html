@@ -6,7 +6,7 @@
         {{ .myheader }}
     </h1>
     <ul>
-        <a href="/">Home</a> | <form method="post" action="/smb/search"><input type="text" name="keyword" size="15"/><input type="submit" name="submit" value="Search file"/></form>
+        <a href="/">Home</a> | <form method="post" action="/smb/search"><input type="text" name="keyword" size="15"/><input type="submit" name="submit" value="Search file (use go regex pattern)"/><input type="hidden" name="rootdir" value="{{ .rootPath }}"/> </form>
         <hr />
         <a href="/smb/ls/{{ .updir }}">Up</a><br/><br/>
         {{ range $idx, $fi := .finfo }}
