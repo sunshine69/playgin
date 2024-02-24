@@ -1,7 +1,7 @@
 package main
 
 import (
-	smbVFS "devops_app_go/smb"
+	smbVFS "playgin/smb"
 	"fmt"
 	iofs "io/fs"
 	"mime"
