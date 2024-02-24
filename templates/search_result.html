@@ -1,0 +1,19 @@
+<html>
+<title>{{ .title }}</title>
+
+<body>
+    <h1>
+        {{ .myheader }}
+    </h1>
+    <ul>
+        {{ range $idx, $path := .matches }}
+        <li><a href="/smb/get/{{$.rootdir}}/{{ $path }}">{{ $path }}</a> | <a href="/smb/get/{{$.rootdir}}/{{ $path }}?action=view">view</a></li>
+        {{ end }}
+        <br/><br/>
+        <hr />
+        <a href="/">Home</a></p>
+    </ul>
+
+</body>
+
+</html>
