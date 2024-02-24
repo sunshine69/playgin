@@ -1,14 +1,15 @@
 package main
 
 import (
+	smbVFS "devops_app_go/smb"
 	"fmt"
 	iofs "io/fs"
 	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
-	smbVFS "playgin/smb"
 	"regexp"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -53,13 +54,22 @@ func doSearch(c *gin.Context) {
 		c.Writer.WriteString("Keyword search required")
 		return
 	}
+	rootDir := c.PostForm("rootdir")
+	if rootDir == "" {
+		rootDir = "."
+	}
 	s := smbVFS.SmbVFS_Connect(smbServer, smbUser, smbPassword, smbShare, smbDomain, "")
 	defer s.Close()
-	namePtn := regexp.MustCompile(keyword)
+	namePtn, err := regexp.Compile(keyword)
+	if err != nil {
+		c.Writer.WriteString("<html><body>ERROR. Search pattern is in golang regexp format which is mostly PCRE compatible. See <a href=\"https://github.com/google/re2/wiki/Syntax\">https://github.com/google/re2/wiki/Syntax for details</a></body>")
+		return
+	}
 	matches := []string{}
-	err := iofs.WalkDir(s.FS.DirFS("."), ".", func(path string, d iofs.DirEntry, err error) error {
+	err = iofs.WalkDir(s.FS.DirFS(rootDir), ".", func(path string, d iofs.DirEntry, err error) error {
 		if !d.IsDir() && namePtn.MatchString(d.Name()) {
 			// fmt.Println(path, d.Name(), err)
+			path = strings.ReplaceAll(path, `\`, `/`)
 			matches = append(matches, path)
 			// return iofs.SkipAll
 		}
@@ -68,7 +78,19 @@ func doSearch(c *gin.Context) {
 	if err != nil {
 		c.Writer.WriteString(err.Error())
 	} else {
-		c.Writer.WriteString(fmt.Sprintf("%q", matches))
+		if rootDir == "." {
+			rootDir = ""
+		} else {
+			rootDir = slashPtnPrefix.ReplaceAllString(rootDir, "")
+			rootDir = slashPtnSuffix.ReplaceAllString(rootDir, "")
+		}
+		c.HTML(http.StatusOK, "search_result.html", gin.H{
+			"title":    "Explore smb share",
+			"myheader": "search result",
+			"matches":  matches,
+			"rootdir":  rootDir,
+		})
+		// c.Writer.WriteString(fmt.Sprintf("%q", matches))
 	}
 }
 
@@ -82,15 +104,19 @@ func doGet(c *gin.Context) {
 	if err != nil {
 		fmt.Printf("%s\n", err.Error())
 	}
-	fmt.Printf("Get File name: %s\n", smbFile.Name())
+	fileName := filepath.Base(strings.ReplaceAll(fullPath, `\`, `/`))
+	fmt.Printf("Get File name: %s | '%s'\n", smbFile.Name(), fileName)
 
 	w := c.Writer
 	header := w.Header()
-	header.Set("Transfer-Encoding", "chunked")
+
+	header.Set("Content-Type", mime.TypeByExtension(filepath.Ext(fileName)))
 	if action == "download" {
-		header.Set("Content-Disposition", "attachment; filename="+filepath.Base(smbFile.Name()))
+		header.Set("Transfer-Encoding", "chunked")
+		header.Set("Content-Disposition", "attachment; filename=\""+fileName+"\"")
+	} else {
+		header.Set("Content-Disposition", "inline; filename=\""+fileName+"\"")
 	}
-	header.Set("Content-Type", mime.TypeByExtension(filepath.Ext(smbFile.Name())))
 	w.WriteHeader(http.StatusOK)
 
 	buff := make([]byte, chunkSize)
