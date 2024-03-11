@@ -16,8 +16,8 @@
         {{ end }}
         {{ range $idx, $fi := .finfo }}
         {{ if not $fi.IsDir }}
-        <li>File <a href="/smb/get/{{ $.rootPath }}/{{ $fi.Name }}">{{ $fi.Name }} | {{ $fi.Size }} bytes | </a>&nbsp <a
-                href="/smb/get/{{ $.rootPath }}/{{ $fi.Name }}?action=view">view</a></li>
+        <li>File <a href="/smb/get?path={{ $.rootPath }}/{{ $fi.Name }}">{{ $fi.Name }} | {{ $fi.Size }} bytes | </a>&nbsp <a
+                href="/smb/get?path={{ $.rootPath }}/{{ $fi.Name }}&action=view">view</a></li>
         {{ end }}
         {{ end }}
         <br/><br/>
