@@ -1,29 +1,28 @@
 package main
 
 import (
+	smbVFS "devops_app_go/smb"
 	"fmt"
 	"io"
-
 	iofs "io/fs"
 	"mime"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
-	smbVFS "playgin/smb"
 	"regexp"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gomarkdown/markdown"
 )
 
 var (
-	smbServer   = os.Getenv("SMB_SERVER")
-	smbUser     = os.Getenv("SMB_USER")
-	smbPassword = os.Getenv("SMB_PASSWORD")
-	smbDomain   = os.Getenv("SMB_USER_DOMAIN")
-	smbShare    = os.Getenv("SMB_SHARE")
-	// chunkSize      = 50 * 1024 * 1024
+	smbServer      = os.Getenv("SMB_SERVER")
+	smbUser        = os.Getenv("SMB_USER")
+	smbPassword    = os.Getenv("SMB_PASSWORD")
+	smbDomain      = os.Getenv("SMB_USER_DOMAIN")
+	smbShare       = os.Getenv("SMB_SHARE")
 	slashPtnSuffix = regexp.MustCompile(`[/]+$`)
 	slashPtnPrefix = regexp.MustCompile(`^[/]+`)
 	httpPort       = os.Getenv("HTTP_PORT")
@@ -37,11 +36,9 @@ func init() {
 
 func main() {
 	router := gin.Default()
-	router.UseRawPath = true
-	router.UnescapePathValues = false
 	router.LoadHTMLGlob("templates/*")
 	router.GET("/smb/ls/*path", doList)
-	router.GET("/smb/get/*path", doGet)
+	router.GET("/smb/get", doGet)
 	router.POST("/smb/search", doSearch)
 
 	router.GET("/", func(c *gin.Context) {
@@ -59,13 +56,14 @@ func doSearch(c *gin.Context) {
 		c.Writer.WriteString("Keyword search required")
 		return
 	}
-	fmt.Printf("Key word: '%s'\n", keyword)
 	rootDir := c.PostForm("rootdir")
 	if rootDir == "" {
 		rootDir = "."
 	}
+
 	s := smbVFS.SmbVFS_Connect(smbServer, smbUser, smbPassword, smbShare, smbDomain, "")
 	defer s.Close()
+
 	namePtn, err := regexp.Compile(keyword)
 	if err != nil {
 		c.Writer.WriteString("<html><body>ERROR. Search pattern is in golang regexp format which is mostly PCRE compatible. See <a href=\"https://github.com/google/re2/wiki/Syntax\">https://github.com/google/re2/wiki/Syntax for details</a></body>")
@@ -103,7 +101,7 @@ func doSearch(c *gin.Context) {
 func doGet(c *gin.Context) {
 	s := smbVFS.SmbVFS_Connect(smbServer, smbUser, smbPassword, smbShare, smbDomain, "")
 	defer s.Close()
-	fullPath := c.Param("path")
+	fullPath := c.Query("path")
 	fmt.Printf("File path 1: '%s'\n", fullPath)
 	action := c.DefaultQuery("action", "download")
 	fullPath, err := url.QueryUnescape(fullPath)
@@ -127,28 +125,17 @@ func doGet(c *gin.Context) {
 	if action == "download" {
 		header.Set("Transfer-Encoding", "chunked")
 		header.Set("Content-Disposition", "attachment; filename=\""+fileName+"\"")
-
-		// w.WriteHeader(http.StatusOK)
-		// buff := make([]byte, chunkSize)
-		// for {
-		// 	readBytes, err := smbFile.Read(buff)
-		// 	if err != nil {
-		// 		fmt.Printf("%s\n", err.Error())
-		// 		w.WriteString("ERROR READ FILE")
-		// 	}
-		// 	if readBytes < chunkSize {
-		// 		buff = buff[:readBytes]
-		// 		w.Write(buff)
-		// 		w.(http.Flusher).Flush()
-		// 		break
-		// 	}
-		// 	w.Write(buff)
-		// }
-		// w.(http.Flusher).Flush()
+		io.Copy(w, smbFile)
 	} else {
 		header.Set("Content-Disposition", "inline; filename=\""+fileName+"\"")
+		if strings.HasSuffix(fileName, ".md") || strings.HasSuffix(fileName, ".MD") {
+			fileContent, _ := s.FS.ReadFile(fileName)
+			htmlContent := markdown.ToHTML(fileContent, nil, nil)
+			w.Write(htmlContent)
+		} else {
+			io.Copy(w, smbFile)
+		}
 	}
-	io.Copy(w, smbFile)
 	w.Flush()
 }
 
@@ -157,10 +144,7 @@ func doList(c *gin.Context) {
 	s := smbVFS.SmbVFS_Connect(smbServer, smbUser, smbPassword, smbShare, smbDomain, "")
 	defer s.Close()
 	fullPath := c.Param("path")
-	fullPath, err := url.QueryUnescape(fullPath)
-	if err != nil {
-		fmt.Printf("ERROR PathUnescape %s\n", err.Error())
-	}
+
 	fullPath = slashPtnSuffix.ReplaceAllString(fullPath, "")
 	fullPath = slashPtnPrefix.ReplaceAllString(fullPath, "")
 	updir := filepath.Dir(fullPath)
