@@ -129,7 +129,6 @@ func doGet(c *gin.Context) {
 		header.Set("Content-Disposition", "inline; filename=\""+fileName+"\"")
 		if strings.HasSuffix(fileName, ".md") || strings.HasSuffix(fileName, ".MD") {
 			println("[DEBUG] File type is markdown")
-			header.Set("Content-Type", "text/html")
 			fileContent, _ := s.FS.ReadFile(fullPath)
 			htmlContent := markdown.ToHTML(fileContent, nil, nil)
 			c.Data(http.StatusOK, "text/html; charset=utf-8", htmlContent)
