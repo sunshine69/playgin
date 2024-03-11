@@ -102,37 +102,39 @@ func doGet(c *gin.Context) {
 	s := smbVFS.SmbVFS_Connect(smbServer, smbUser, smbPassword, smbShare, smbDomain, "")
 	defer s.Close()
 	fullPath := c.Query("path")
-	fmt.Printf("File path 1: '%s'\n", fullPath)
 	action := c.DefaultQuery("action", "download")
 	fullPath, err := url.QueryUnescape(fullPath)
 	if err != nil {
-		fmt.Printf("ERROR PathUnescape %s\n", err.Error())
+		fmt.Printf("[ERROR] PathUnescape %s\n", err.Error())
 	}
 	fullPath = slashPtnPrefix.ReplaceAllString(fullPath, "")
-	fmt.Printf("File path: '%s'\n", fullPath)
+	fmt.Printf("[DEBUG] File path: '%s'\n", fullPath)
 	smbFile, err := s.FS.Open(fullPath)
 	if err != nil {
 		fmt.Printf("ERROR FS.Open %s\n", err.Error())
 	}
 	fileName := filepath.Base(strings.ReplaceAll(fullPath, `\`, `/`))
-	fmt.Printf("Get File name: %s | '%s'\n", smbFile.Name(), fileName)
+	fmt.Printf("[DEBUG] Get File name: %s | '%s'\n", smbFile.Name(), fileName)
 
 	w := c.Writer
 	header := w.Header()
 	contentType := mime.TypeByExtension(filepath.Ext(fileName))
 	println("Content-Type detected " + contentType)
-	header.Set("Content-Type", contentType)
 	if action == "download" {
+		header.Set("Content-Type", contentType)
 		header.Set("Transfer-Encoding", "chunked")
 		header.Set("Content-Disposition", "attachment; filename=\""+fileName+"\"")
 		io.Copy(w, smbFile)
 	} else {
 		header.Set("Content-Disposition", "inline; filename=\""+fileName+"\"")
 		if strings.HasSuffix(fileName, ".md") || strings.HasSuffix(fileName, ".MD") {
-			fileContent, _ := s.FS.ReadFile(fileName)
+			println("[DEBUG] File type is markdown")
+			header.Set("Content-Type", "text/html")
+			fileContent, _ := s.FS.ReadFile(fullPath)
 			htmlContent := markdown.ToHTML(fileContent, nil, nil)
-			w.Write(htmlContent)
+			c.Data(http.StatusOK, "text/html; charset=utf-8", htmlContent)
 		} else {
+			header.Set("Content-Type", contentType)
 			io.Copy(w, smbFile)
 		}
 	}
